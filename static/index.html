@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anchor — предиктивная аналитика оттока</title>
+<meta name="description" content="Anchor показывает, кто уйдёт в следующие 30 дней, сколько MRR под угрозой и что сделать, чтобы клиента удержать.">
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="ambient"></div>
+
+<div class="app">
+  <aside class="sidebar">
+    <a class="brand" href="#" data-view-link="overview">
+      <svg class="logo" viewBox="0 0 36 36" aria-hidden="true">
+        <defs>
+          <linearGradient id="logoGradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#9b7bff"/>
+            <stop offset="1" stop-color="#22d3ee"/>
+          </linearGradient>
+        </defs>
+        <circle cx="18" cy="18" r="16" fill="url(#logoGradient)" opacity=".12"/>
+        <circle cx="18" cy="18" r="16" fill="none" stroke="url(#logoGradient)" stroke-width="1.4"/>
+        <path d="M18 8.5v17M13 13h10M10.5 19c0 4.4 3.4 7 7.5 7s7.5-2.6 7.5-7" fill="none" stroke="url(#logoGradient)" stroke-width="1.9" stroke-linecap="round"/>
+        <circle cx="18" cy="8.5" r="1.7" fill="#22d3ee"/>
+      </svg>
+      <span class="brand-text">
+        <span class="brand-name">Anchor</span>
+        <span class="brand-tag">retention intelligence</span>
+      </span>
+    </a>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view-link="overview">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6v7H4zM4 4h6v6H4zM14 4h6v10h-6zM14 17h6v3h-6z"/></svg>
+        <span>Обзор</span>
+      </button>
+      <button class="nav-item" data-view-link="customers">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 20v-1.6c0-2.4-1.9-4.4-4.3-4.4H7.3C4.9 14 3 16 3 18.4V20M9.5 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM21 20v-1.6c0-2-1.3-3.7-3.1-4.2M16.2 3.7a3.5 3.5 0 0 1 0 6.8"/></svg>
+        <span>Клиенты</span>
+        <span class="nav-badge" id="riskBadge">—</span>
+      </button>
+      <button class="nav-item" data-view-link="model">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5M9 12a3 3 0 1 0 0-.01"/></svg>
+        <span>Модель</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-section">
+      <span class="sidebar-label">Источник данных</span>
+      <div class="dataset-card">
+        <div class="dataset-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3ZM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+        </div>
+        <div class="dataset-text">
+          <b id="datasetName">Демо-набор</b>
+          <span id="datasetMeta">1 680 клиентов</span>
+        </div>
+        <span class="dataset-live"></span>
+      </div>
+      <button class="btn btn-ghost btn-block" id="importBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        Импортировать CSV
+      </button>
+      <button class="btn btn-ghost btn-block hidden" id="resetBtn">Вернуть демо-данные</button>
+      <a class="link-small" href="/api/sample.csv">Скачать пример CSV</a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="model-status">
+        <span class="pulse"></span>
+        <div>
+          <b>Модель активна</b>
+          <span id="sidebarAuc">AUC —</span>
+        </div>
+      </div>
+      <p>Демо-данные синтетические.<br>Модель обучается локально.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-copy">
+        <div class="topbar-eyebrow" id="viewEyebrow">Retention intelligence</div>
+        <h1 id="viewTitle">Обзор</h1>
+      </div>
+      <div class="topbar-actions">
+        <label class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="searchInput" type="search" placeholder="Найти клиента или отрасль" autocomplete="off">
+          <kbd>/</kbd>
+        </label>
+        <button class="btn btn-ghost" id="exportBtn">
+          <svg viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></svg>
+          Экспорт
+        </button>
+        <button class="btn btn-primary" id="runBtn">
+          <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4"/></svg>
+          Пересчитать
+        </button>
+      </div>
+    </header>
+
+    <section class="view" id="view-overview">
+      <div class="hero card">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="pulse"></span> Прогноз на 30 дней <span id="updatedAt"></span></div>
+          <h2>Кто уйдёт <span class="gradient-text">следующим</span></h2>
+          <p id="heroText">Модель оценивает поведение клиентов и показывает, где вы теряете деньги — и что сделать, чтобы их сохранить.</p>
+          <div class="hero-badges">
+            <span class="badge"><span class="badge-dot"></span><b id="heroCustomers">—</b> клиентов в модели</span>
+            <span class="badge">AUC <b id="heroAuc">—</b></span>
+            <span class="badge"><b id="heroFeatures">—</b> факторов</span>
+          </div>
+        </div>
+        <div class="hero-gauge">
+          <div class="gauge" id="heroGauge"></div>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <div class="grid grid-chart">
+        <article class="card chart-card">
+          <header class="card-head">
+            <div>
+              <h3>MRR и прогноз</h3>
+              <p>Факт и ожидаемая динамика на 3 месяца</p>
+            </div>
+            <div class="chart-legend">
+              <span><i class="legend-solid"></i> факт</span>
+              <span><i class="legend-dash"></i> прогноз</span>
+            </div>
+          </header>
+          <div class="chart" id="trendChart"></div>
+        </article>
+
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h3>Распределение риска</h3>
+              <p>Сколько клиентов в каждой зоне</p>
+            </div>
+          </header>
+          <div class="donut-wrap">
+            <div id="riskDonut" class="donut"></div>
+            <div id="riskLegend" class="legend-list"></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="grid grid-two">
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h3>Топ факторов риска</h3>
+              <p>Что сильнее всего влияет на прогноз</p>
+            </div>
+          </header>
+          <div id="drivers" class="driver-list"></div>
+        </article>
+
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h3>По тарифам</h3>
+              <p>Клиенты, MRR и средний риск</p>
+            </div>
+          </header>
+          <div id="plans" class="plan-list"></div>
+        </article>
+      </div>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h3>Клиенты, которые уйдут первыми</h3>
+            <p>Отсортировано по ожидаемой потере MRR</p>
+          </div>
+          <button class="btn btn-ghost btn-small" data-view-link="customers">Все клиенты →</button>
+        </header>
+        <div id="topTable" class="table-wrap"></div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h3>Когортное удержание</h3>
+            <p>Доля клиентов, остающихся через N месяцев</p>
+          </div>
+          <span class="muted-note">по месяцу первого платежа</span>
+        </header>
+        <div id="cohorts" class="cohorts"></div>
+      </article>
+    </section>
+
+    <section class="view hidden" id="view-customers">
+      <div class="toolbar card">
+        <div class="chips" id="segmentChips">
+          <button class="chip active" data-segment="all">Все <span id="chipAll">—</span></button>
+          <button class="chip" data-segment="high"><i class="dot dot-rose"></i>Высокий <span id="chipHigh">—</span></button>
+          <button class="chip" data-segment="medium"><i class="dot dot-amber"></i>Средний <span id="chipMedium">—</span></button>
+          <button class="chip" data-segment="low"><i class="dot dot-emerald"></i>Низкий <span id="chipLow">—</span></button>
+        </div>
+        <div class="toolbar-right">
+          <label class="select-wrap">
+            <span>Тариф</span>
+            <select id="planFilter">
+              <option value="all">Все</option>
+              <option value="Starter">Starter</option>
+              <option value="Growth">Growth</option>
+              <option value="Scale">Scale</option>
+              <option value="Enterprise">Enterprise</option>
+            </select>
+          </label>
+          <label class="select-wrap">
+            <span>Сортировка</span>
+            <select id="sortFilter">
+              <option value="expected_loss">Ожидаемая потеря</option>
+              <option value="risk">Риск</option>
+              <option value="mrr">MRR</option>
+              <option value="tenure">Стаж</option>
+              <option value="company">Название</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <article class="card table-card">
+        <div id="customersTable" class="table-wrap"></div>
+        <div class="pagination" id="pagination"></div>
+      </article>
+    </section>
+
+    <section class="view hidden" id="view-model">
+      <div class="model-hero card">
+        <div>
+          <div class="eyebrow"><span class="pulse"></span> Logistic regression · L2</div>
+          <h2>Модель, которой можно <span class="gradient-text">доверять</span></h2>
+          <p>Anchor обучается на поведенческих признаках и выдаёт калиброванную вероятность оттока. Каждое решение можно разложить по факторам — без чёрного ящика.</p>
+        </div>
+        <div class="model-score-big">
+          <span>AUC</span>
+          <b id="modelAucBig">—</b>
+          <em>на отложенной выборке</em>
+        </div>
+      </div>
+
+      <div class="kpi-grid kpi-grid-model" id="modelMetrics"></div>
+
+      <div class="grid grid-two">
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h3>Матрица ошибок</h3>
+              <p>Порог классификации <span id="thresholdLabel">0.50</span></p>
+            </div>
+          </header>
+          <div id="confusion" class="confusion"></div>
+        </article>
+
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h3>Важность факторов</h3>
+              <p>Средний вклад в прогноз по всей базе</p>
+            </div>
+          </header>
+          <div id="modelDrivers" class="driver-list compact"></div>
+        </article>
+      </div>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h3>Как это работает</h3>
+            <p>От сырых данных до конкретного действия</p>
+          </div>
+        </header>
+        <div class="steps">
+          <div class="step">
+            <span class="step-num">01</span>
+            <h4>Признаки</h4>
+            <p>Активность, освоение функций, платежи, поддержка, контракт и динамика использования.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">02</span>
+            <h4>Вероятность</h4>
+            <p>Логистическая регрессия с L2-регуляризацией выдаёт риск оттока на 30 дней.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">03</span>
+            <h4>Объяснение</h4>
+            <p>Вклад каждого фактора в лог-шансы: видно, что именно тянет клиента вниз.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">04</span>
+            <h4>Действие</h4>
+            <p>Сценарии удержания пересчитываются через ту же модель: риск, эффект и ROI в деньгах.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card note-card">
+        <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <p><b>Честно о данных.</b> Демо-набор синтетический: 1 680 компаний с реалистичными распределениями. Модель обучается на этой машине при первом запуске. Для реальных данных загрузите CSV — прогноз пересчитается на ваших клиентах.</p>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <span>Anchor · retention intelligence</span>
+      <span>Демо-данные · модель обучается локально</span>
+    </footer>
+  </main>
+</div>
+
+<div class="drawer-backdrop hidden" id="drawerBackdrop"></div>
+<aside class="drawer hidden" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div id="drawerTitle"></div>
+    <button class="icon-btn" id="drawerClose" aria-label="Закрыть">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<div class="modal-backdrop hidden" id="importModal">
+  <div class="modal card">
+    <header class="card-head">
+      <div>
+        <h3>Импорт клиентов</h3>
+        <p>CSV с колонками company и mrr обязателен, остальное подставится</p>
+      </div>
+      <button class="icon-btn" id="importClose" aria-label="Закрыть">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".csv,text/csv">
+      <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+      <b>Перетащите CSV сюда</b>
+      <span>или нажмите, чтобы выбрать файл</span>
+    </label>
+    <div class="import-hint">
+      <span>Обязательные колонки: <code>company</code>, <code>mrr</code></span>
+      <a href="/api/sample.csv">Скачать пример</a>
+    </div>
+    <div class="import-status" id="importStatus"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
